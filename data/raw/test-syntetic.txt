@@ -1,5 +1,0 @@
-@john likes #green and #yellow
-#black and #red are for @mary
-RT Both like #green and #red
-who likes #green and #yellow?
-no one likes #white
