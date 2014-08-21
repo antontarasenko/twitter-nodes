@@ -1,40 +1,20 @@
 import json
 import itertools
+from math import log
 import sys
 import os
 
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
+import re
 
 
 __author__ = 'Anton Tarasenko'
 
 
 def main():
-    try:
-        ifile = sys.argv[2]
-        if not os.path.isfile(ifile): raise Exception("File not found")
-    except:
-        ifile = input("Enter filename: ").strip()
-    try:
-        ext = sys.argv[3]
-        if ext not in ["pdf", "png", "svg"]: raise Exception("Wrong format")
-    except:
-        ext = "pdf"
-
-    f = open(ifile)
-
-    un = DB("user_mentions")
-    un.populate(json.load(f))
-    users = un.group_nodes()
-    uedges = un.weigh_edges()
-    U = create_graph(users, uedges)
-
-    f.close()
-    small_plot(U, saveas="users." + ext)
-
-    print("Done.")
+    return True
 
 
 class DB:
@@ -42,8 +22,8 @@ class DB:
 
     def __init__(self, type="hashtags"):
         self.type = type
-        self.nodes = pd.DataFrame()
-        self.edges = pd.DataFrame()
+        self.nodes = pd.DataFrame(columns=["name", "mentions", "positive", "negative", "sentiments"])
+        self.edges = pd.DataFrame(columns=[0, 1, "n"])
 
     def populate(self, tweets):
         for c, tweet in enumerate(tweets):
@@ -75,16 +55,27 @@ class DB:
                                            ignore_index=True)
 
     def group_nodes(self):
-        gb = self.nodes.groupby("name")
-        return gb.agg(sum).reset_index()
+        # if len(self.nodes.index) > 0:
+        try:
+            gb = self.nodes.groupby("name")
+            return gb.agg(sum).reset_index()
+        except:
+            pass
+
 
     def weigh_edges(self):
         edges = self.edges
         edges['n'] = 1
-        gb = edges.groupby([0, 1])
-        return gb.count().reset_index()
+        try:
+            gb = edges.groupby([0, 1])
+            return gb.count().reset_index()
+        except:
+            pass
 
-    def load_dump(self, file):
+    def load_json(self, file):
+        # Start from scratch
+        self.nodes = pd.DataFrame()
+        self.edges = pd.DataFrame()
         with open(file) as f:
             self.populate(json.load(f))
         nodes = self.group_nodes()
@@ -95,7 +86,7 @@ class DB:
         pass
 
 
-def small_plot(G, saveas="", **kwargs):
+def plot(G, saveas="", **kwargs):
     # Plotting
     plt.figure(facecolor="#FEF8E8", **kwargs)
     try:
@@ -110,14 +101,14 @@ def small_plot(G, saveas="", **kwargs):
         nodesize.append(node[1]['mentions'])
         sentiments.append(node[1]['sentiments'])
     nx.draw_networkx_nodes(G, pos, alpha=0.1,
-                           node_size=normalize_size(nodesize, 500),
-                           node_color=color_sentiments(sentiments))
+                           node_size=normalize(nodesize, 500),
+                           node_color=gradient(sentiments))
 
     # Edges
     edgewidth = []
     for edge in G.edges(data=True):
         edgewidth.append(edge[2]['weight'])
-    nx.draw_networkx_edges(G, pos, alpha=0.03, node_size=0, width=normalize_size(edgewidth, 10), edge_color='k')
+    nx.draw_networkx_edges(G, pos, alpha=0.03, node_size=0, width=normalize(edgewidth, 10), edge_color='k')
 
     # Labels
     font = {'color': 'k',
@@ -135,8 +126,15 @@ def small_plot(G, saveas="", **kwargs):
     else:
         plt.show()
 
+def plot_json(file, ext="pdf"):
+    for i in ["hashtags", "user_mentions"]:
+        db = DB(i)
+        G = graph(*db.load_json(file))
+        plot(G, saveas="%s.%s.%s" % (re.sub("\.json$", "", file), i, ext))
+    return True
 
-def color_sentiments(sentiments):
+
+def gradient(sentiments):
     """
     Red-green scale for sentiments around the node.
 
@@ -146,31 +144,37 @@ def color_sentiments(sentiments):
     return ['g' if i > 0 else ('r' if i < 0 else 'w') for i in sentiments]
 
 
-def normalize_size(sizes, scale=10):
+def normalize(values, scale=10):
     """
     Normalize node size and edge width.
 
-    :param size: List of numbers.
+    :param values: List of numbers.
     :param scale: Scale for resizing.
     :return:
     """
     min = 0
-    maxi = max(sizes)
-    nsize = [( size / maxi ) * scale for size in sizes]
-    return nsize
+    maxi = max(values) if len(values) > 0 else scale
+    new_size = [( size / (maxi - min) ) * scale for size in values]
+    return new_size
 
 
-def create_graph(nodes, edges):
+def graph(nodes, edges):
     G = nx.Graph()
+    added_nodes = set()
     for node in nodes.iterrows():
         r = node[1]
         G.add_node(r['name'],
                    mentions=r['mentions'],
                    retweeted=r['retweeted'],
                    sentiments=r['sentiments'])
+        added_nodes.add(r['name'])
     for edge in edges.iterrows():
         row = edge[1]
         G.add_edge(edge[1][0], edge[1][1], weight=edge[1]['n'])
+
+    # Ensure that if nodes are filtered, edges don't have excluded nodes
+    G.remove_nodes_from(set(G.nodes()) - added_nodes)
+
     return G
 
 
