@@ -1,5 +1,6 @@
 import os
 import re
+import math
 
 from matplotlib import pyplot as plt
 import networkx as nx
@@ -52,19 +53,20 @@ def normalize(values, scale=10):
     :param scale: Scale for resizing.
     :return:
     """
-    min = 0
-    maxi = max(values) if len(values) > 0 else scale
-    new_size = [( size / (maxi - min) ) * scale for size in values]
+    lnvalues = [math.log(value + 2) for value in values]
+    mini = 0
+    maxi = max(lnvalues) if len(lnvalues) > 0 else scale
+    new_size = [( lnvalue / (maxi - mini) ) * scale for lnvalue in lnvalues]
     return new_size
 
 
 def plot(G, saveas="", **kwargs):
     # Plotting
-    plt.figure(facecolor="#FEF8E8", **kwargs)
+    plt.figure(**kwargs)
     try:
         pos = nx.graphviz_layout(G)
     except:
-        pos = nx.spring_layout(G, iterations=20)
+        pos = nx.spring_layout(G, scale=10, iterations=20)
 
     # Nodes
     nodesize = []
@@ -72,7 +74,7 @@ def plot(G, saveas="", **kwargs):
     for node in G.nodes(data=True):
         nodesize.append(node[1]['mentions'])
         sentiments.append(node[1]['sentiments'])
-    nx.draw_networkx_nodes(G, pos, alpha=0.1,
+    nx.draw_networkx_nodes(G, pos, alpha=0.18,
                            node_size=normalize(nodesize, 500),
                            node_color=gradient(sentiments))
 
@@ -80,7 +82,7 @@ def plot(G, saveas="", **kwargs):
     edgewidth = []
     for edge in G.edges(data=True):
         edgewidth.append(edge[2]['weight'])
-    nx.draw_networkx_edges(G, pos, alpha=0.03, node_size=0, width=normalize(edgewidth, 10), edge_color='k')
+    nx.draw_networkx_edges(G, pos, alpha=0.07, node_size=0, width=normalize(edgewidth, 10), edge_color='k')
 
     # Labels
     font = {'color': 'k',
@@ -107,10 +109,10 @@ def plot_json(file, ext="pdf"):
     return True
 
 
-def plot_live(*args, **kwargs):
+def plot_live(type="hashtags", *args, **kwargs):
     s = Stream()
     s.fetch_live(*args, **kwargs)
-    db = DB()
+    db = DB(type)
     db.populate(s.tweets)
     G = graph(db.group_nodes(), db.weigh_edges())
     plot(G)
