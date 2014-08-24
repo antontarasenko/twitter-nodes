@@ -1,6 +1,6 @@
 # Twitter Nodes
 
-Package for network analysis of structured information on Twitter.
+Package for network analysis of tweets.
 
 ## Contacts
 

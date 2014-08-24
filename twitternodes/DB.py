@@ -22,7 +22,7 @@ class DB:
     def __init__(self, type="hashtags"):
         self.type = type
         self.nodes = pd.DataFrame(columns=["name", "mentions", "positive", "negative", "sentiments"])
-        self.edges = pd.DataFrame(columns=[0, 1, "n"])
+        self.edges = pd.DataFrame(columns=[0, 1, "weight"])
 
     def populate(self, tweets):
         for c, tweet in enumerate(tweets):
@@ -64,7 +64,7 @@ class DB:
 
     def weigh_edges(self):
         edges = self.edges
-        edges['n'] = 1
+        edges['weight'] = 1
         try:
             gb = edges.groupby([0, 1])
             return gb.count().reset_index()

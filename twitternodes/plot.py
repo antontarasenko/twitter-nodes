@@ -27,7 +27,7 @@ def graph(nodes, edges):
         added_nodes.add(r['name'])
     for edge in edges.iterrows():
         row = edge[1]
-        G.add_edge(edge[1][0], edge[1][1], weight=edge[1]['n'])
+        G.add_edge(edge[1][0], edge[1][1], weight=edge[1]['weight'])
 
     # Ensure that if nodes are filtered, edges don't have excluded nodes
     G.remove_nodes_from(set(G.nodes()) - added_nodes)
