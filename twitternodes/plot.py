@@ -115,5 +115,5 @@ def plot_live(type="hashtags", *args, **kwargs):
     db = DB(type)
     db.populate(s.tweets)
     G = graph(db.group_nodes(), db.weigh_edges())
-    plot(G)
+    plot(G, figsize=(15, 10))
     return None
